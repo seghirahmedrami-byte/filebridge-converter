@@ -29,3 +29,14 @@ http://127.0.0.1:8123/
 ```
 
 The app runs in the browser. For GitHub Pages or other static hosting, the app falls back to CDN libraries.
+
+## Optional OpenAI Storyboard API
+
+ShortForge Studio can call a local backend route for AI storyboard generation.
+
+```bash
+set OPENAI_API_KEY=your_key_here
+npm start
+```
+
+Without `OPENAI_API_KEY`, the video studio falls back to its local script generator.

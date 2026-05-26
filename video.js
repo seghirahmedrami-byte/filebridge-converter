@@ -23,10 +23,7 @@ const palettes = {
 };
 
 generateButton.addEventListener("click", () => {
-  scenes = buildScenes();
-  renderSceneEditors();
-  drawScene(0, 0);
-  setStatus("Storyboard generated. Edit any scene text, then render the video.");
+  generateStoryboard();
 });
 
 renderButton.addEventListener("click", async () => {
@@ -34,6 +31,42 @@ renderButton.addEventListener("click", async () => {
   readSceneEditors();
   await renderVideo();
 });
+
+async function generateStoryboard() {
+  setStatus("Generating storyboard with API...");
+  generateButton.disabled = true;
+
+  try {
+    const response = await fetch("/api/storyboard", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        topic: cleanTopic(topicInput.value),
+        tone: toneSelect.value,
+        duration: Number(durationSelect.value),
+        format: formatSelect.value
+      })
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || "API generation is unavailable.");
+    }
+
+    const payload = await response.json();
+    scenes = normalizeApiScenes(payload.scenes);
+    renderSceneEditors();
+    drawScene(0, 0);
+    setStatus("AI storyboard generated. Edit any scene text, then render the video.");
+  } catch (error) {
+    scenes = buildScenes();
+    renderSceneEditors();
+    drawScene(0, 0);
+    setStatus(`${error.message} Used local script generator instead.`);
+  } finally {
+    generateButton.disabled = false;
+  }
+}
 
 function buildScenes() {
   const topic = cleanTopic(topicInput.value) || "How to build better habits";
@@ -55,6 +88,18 @@ function buildScenes() {
     ...bodyLines.map((line, index) => makeScene(`Point ${index + 1}`, line, seconds, index + 1)),
     makeScene("Call to action", `Save this and try it today: ${topic}.`, seconds, sceneCount - 1)
   ];
+}
+
+function normalizeApiScenes(apiScenes) {
+  const source = Array.isArray(apiScenes) && apiScenes.length ? apiScenes : buildScenes();
+  return source.map((scene, index) => ({
+    label: scene.label || `Scene ${index + 1}`,
+    text: scene.text || "Keep watching.",
+    seconds: Number(scene.seconds || Number(durationSelect.value) / source.length),
+    index,
+    visual: scene.visual || "Animated caption scene",
+    accent: palettes[toneSelect.value][index % palettes[toneSelect.value].length]
+  }));
 }
 
 function makeBodyLines(topic, format, count) {
@@ -105,6 +150,7 @@ function renderSceneEditors() {
         <span>${scene.label}</span>
         <span>${scene.seconds.toFixed(1)}s</span>
       </div>
+      <p class="visual">${scene.visual || "Animated caption scene"}</p>
       <textarea data-scene="${index}">${scene.text}</textarea>
     `;
     scenesContainer.appendChild(article);
