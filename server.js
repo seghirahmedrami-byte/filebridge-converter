@@ -4,6 +4,7 @@ const path = require("path");
 const OpenAI = require("openai");
 
 const root = __dirname;
+loadEnvFile(path.join(root, ".env"));
 const port = Number(process.env.PORT || 8123);
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
 
@@ -20,6 +21,20 @@ const types = {
   ".wasm": "application/wasm",
   ".gz": "application/gzip"
 };
+
+function loadEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return;
+  const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
+  lines.forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) return;
+    const separator = trimmed.indexOf("=");
+    if (separator === -1) return;
+    const key = trimmed.slice(0, separator).trim();
+    const value = trimmed.slice(separator + 1).trim();
+    if (key && !process.env[key]) process.env[key] = value;
+  });
+}
 
 const server = http.createServer((request, response) => {
   if (request.method === "POST" && request.url === "/api/storyboard") {
@@ -107,6 +122,13 @@ async function handleStoryboardRequest(request, response) {
     sendJson(response, 200, { scenes, source: "openai" });
   } catch (error) {
     console.error(error);
+    if (error.status === 429 || error.code === "insufficient_quota") {
+      sendJson(response, 429, {
+        error: "OpenAI quota is unavailable for this project. Check billing or try another API key."
+      });
+      return;
+    }
+
     sendJson(response, 500, { error: "Could not generate storyboard." });
   }
 }
