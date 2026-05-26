@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FileBridge Converter</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">PDF / JPEG / Excel</p>
+          <h1 id="page-title">FileBridge Converter</h1>
+          <p class="intro">
+            Convert PDF, JPEG, and Excel files, then organize PDF pages with
+            rotate, delete, and reorder tools.
+          </p>
+        </div>
+        <div class="status-card">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>Runs in your browser</span>
+        </div>
+      </section>
+
+      <section class="workspace" aria-label="Converter">
+        <div class="panel controls-panel">
+          <div class="field">
+            <label for="mode">Conversion</label>
+            <select id="mode">
+              <option value="pdf-to-excel">PDF to Excel</option>
+              <option value="jpeg-to-excel">JPEG to Excel</option>
+              <option value="excel-to-pdf">Excel to PDF</option>
+              <option value="excel-to-jpeg">Excel to JPEG</option>
+            </select>
+          </div>
+
+          <label class="drop-zone" for="file-input">
+            <input id="file-input" type="file" accept=".pdf,.jpg,.jpeg,.xlsx,.xls,.csv">
+            <span class="upload-icon" aria-hidden="true">+</span>
+            <strong>Choose a file</strong>
+            <small id="accept-copy">PDF files are accepted for this mode.</small>
+          </label>
+
+          <div class="actions">
+            <button id="convert-btn" type="button">Convert</button>
+            <button id="clear-btn" type="button" class="secondary">Clear</button>
+          </div>
+
+          <div class="progress-wrap" aria-live="polite">
+            <div id="progress-bar" class="progress-bar"></div>
+            <p id="status-text">Select a conversion mode and upload a file.</p>
+          </div>
+        </div>
+
+        <div class="panel preview-panel">
+          <div class="preview-header">
+            <div>
+              <p class="eyebrow">Preview</p>
+              <h2>Extracted table</h2>
+            </div>
+            <a id="download-link" class="download-link disabled" href="#" download>Download</a>
+          </div>
+          <div id="preview" class="preview">
+            <p class="empty">Your converted data will appear here.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="pdf-editor panel" aria-labelledby="pdf-editor-title">
+        <div class="preview-header editor-header">
+          <div>
+            <p class="eyebrow">PDF Tools</p>
+            <h2 id="pdf-editor-title">Modify PDF pages</h2>
+          </div>
+          <a id="pdf-download-link" class="download-link disabled" href="#" download="modified.pdf">Download PDF</a>
+        </div>
+
+        <div class="editor-body">
+          <div class="editor-controls">
+            <label class="drop-zone editor-drop" for="pdf-edit-input">
+              <input id="pdf-edit-input" type="file" accept=".pdf">
+              <span class="upload-icon" aria-hidden="true">+</span>
+              <strong>Choose PDF</strong>
+              <small>Upload a PDF to rotate, remove, or reorder pages.</small>
+            </label>
+
+            <div class="actions editor-actions">
+              <button id="pdf-save-btn" type="button">Save Modified PDF</button>
+              <button id="pdf-reset-btn" type="button" class="secondary">Reset</button>
+            </div>
+
+            <div class="text-editor-tools" aria-label="PDF text editor">
+              <div class="field">
+                <label for="pdf-text-input">Text to add</label>
+                <textarea id="pdf-text-input" rows="3" placeholder="Type new text here"></textarea>
+              </div>
+
+              <div class="tool-grid">
+                <div class="field">
+                  <label for="pdf-font-size">Size</label>
+                  <input id="pdf-font-size" type="number" min="6" max="72" value="14">
+                </div>
+
+                <div class="field">
+                  <label for="pdf-text-color">Color</label>
+                  <input id="pdf-text-color" type="color" value="#13201f">
+                </div>
+              </div>
+
+              <label class="check-row" for="pdf-cover-toggle">
+                <input id="pdf-cover-toggle" type="checkbox">
+                Cover behind text
+              </label>
+
+              <div class="field">
+                <label for="pdf-edit-mode">Click action</label>
+                <select id="pdf-edit-mode">
+                  <option value="add-text">Add text</option>
+                  <option value="erase-text">Remove text area</option>
+                </select>
+              </div>
+
+              <div class="tool-grid">
+                <div class="field">
+                  <label for="pdf-erase-width">Remove width</label>
+                  <input id="pdf-erase-width" type="number" min="10" max="600" value="160">
+                </div>
+
+                <div class="field">
+                  <label for="pdf-erase-height">Remove height</label>
+                  <input id="pdf-erase-height" type="number" min="6" max="200" value="24">
+                </div>
+              </div>
+
+              <div class="actions editor-actions">
+                <button id="pdf-undo-text-btn" type="button" class="secondary">Undo Text</button>
+                <button id="pdf-undo-erase-btn" type="button" class="secondary">Undo Remove</button>
+              </div>
+
+              <div class="detected-text-tools">
+                <button id="pdf-detect-text-btn" type="button">Detect Page Text</button>
+                <label class="check-row" for="pdf-auto-style-toggle">
+                  <input id="pdf-auto-style-toggle" type="checkbox" checked>
+                  Match detected style
+                </label>
+                <div class="field">
+                  <label for="pdf-replace-input">Replace selected with</label>
+                  <textarea id="pdf-replace-input" rows="2" placeholder="New text for selected item"></textarea>
+                </div>
+                <div class="actions editor-actions">
+                  <button id="pdf-replace-text-btn" type="button">Replace</button>
+                  <button id="pdf-remove-selected-btn" type="button" class="secondary">Remove</button>
+                </div>
+                <div id="pdf-detected-list" class="detected-list">
+                  <p class="empty">Detected text will appear here.</p>
+                </div>
+              </div>
+            </div>
+
+            <p id="pdf-status-text" class="editor-status">Select a PDF to start editing.</p>
+          </div>
+
+          <div class="pdf-edit-stage">
+            <div class="open-page-toolbar">
+              <strong id="open-page-title">Open a page to edit</strong>
+              <div class="open-page-actions">
+                <button id="open-page-prev" type="button" class="secondary">Prev</button>
+                <button id="open-page-next" type="button" class="secondary">Next</button>
+              </div>
+            </div>
+            <div id="open-page-canvas" class="open-page-canvas">
+              <p class="empty">Choose a PDF, then click Open on a page.</p>
+            </div>
+            <div id="pdf-page-list" class="pdf-page-list">
+              <p class="empty">PDF pages will appear here.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="app.js?v=8"></script>
+  </body>
+</html>
