@@ -13,6 +13,7 @@ A browser-based PDF, JPEG, and Excel tool.
 - Add text to PDFs
 - Cover/remove text areas
 - Detect embedded PDF text and replace or remove it with matched style metadata
+- Generate short vertical videos from a topic with script/storyboard, captions, animation, and WebM export
 
 ## Run Locally
 

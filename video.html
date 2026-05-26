@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ShortForge Studio</title>
+    <link rel="stylesheet" href="video.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="hero" aria-labelledby="title">
+        <div>
+          <p class="eyebrow">AI Short Video Studio</p>
+          <h1 id="title">ShortForge Studio</h1>
+          <p class="intro">Turn a topic into a scripted, captioned vertical video with animated scenes and a downloadable export.</p>
+        </div>
+        <a class="home-link" href="index.html">FileBridge</a>
+      </section>
+
+      <section class="studio">
+        <aside class="panel controls">
+          <div class="field">
+            <label for="topic">Video topic</label>
+            <textarea id="topic" rows="4" placeholder="Example: 5 habits that make you more productive"></textarea>
+          </div>
+
+          <div class="grid two">
+            <div class="field">
+              <label for="tone">Tone</label>
+              <select id="tone">
+                <option value="educational">Educational</option>
+                <option value="viral">Viral</option>
+                <option value="luxury">Luxury</option>
+                <option value="story">Story</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="duration">Duration</label>
+              <select id="duration">
+                <option value="20">20 sec</option>
+                <option value="30" selected>30 sec</option>
+                <option value="45">45 sec</option>
+                <option value="60">60 sec</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="grid two">
+            <div class="field">
+              <label for="format">Format</label>
+              <select id="format">
+                <option value="short">Short/Reel</option>
+                <option value="ad">Product ad</option>
+                <option value="facts">Fact list</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="music">Music</label>
+              <select id="music">
+                <option value="pulse">Pulse</option>
+                <option value="calm">Calm</option>
+                <option value="none">None</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="generate" type="button">Generate Script</button>
+            <button id="render" type="button" class="primary">Render Video</button>
+          </div>
+
+          <a id="download" class="download disabled" href="#" download="shortforge-video.webm">Download Video</a>
+          <p id="status" class="status">Enter a topic and generate your first short.</p>
+        </aside>
+
+        <section class="panel preview-panel">
+          <div class="phone">
+            <canvas id="preview" width="1080" height="1920" aria-label="Video preview"></canvas>
+          </div>
+        </section>
+
+        <section class="panel script-panel">
+          <div class="panel-title">
+            <p class="eyebrow">Storyboard</p>
+            <h2>Scenes</h2>
+          </div>
+          <div id="scenes" class="scenes">
+            <p class="empty">Your generated scenes will appear here.</p>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="video.js"></script>
+  </body>
+</html>
