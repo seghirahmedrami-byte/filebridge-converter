@@ -161,13 +161,8 @@ async function loadPdfTools() {
 
 async function loadPdfRenderer() {
   if (!pdfjsRenderer) {
-    try {
-      pdfjsRenderer = await import("/node_modules/pdfjs-dist/build/pdf.min.mjs");
-      pdfjsRenderer.GlobalWorkerOptions.workerSrc = "/node_modules/pdfjs-dist/build/pdf.worker.min.mjs";
-    } catch (localError) {
-      pdfjsRenderer = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs");
-      pdfjsRenderer.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
-    }
+    pdfjsRenderer = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs");
+    pdfjsRenderer.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
   }
 
   return pdfjsRenderer;
@@ -290,8 +285,7 @@ async function pdfToExcel(file) {
   assertExtension(file, [".pdf"]);
   setStatus("Reading PDF pages...", 12);
 
-  const pdfjsLib = await import("/node_modules/pdfjs-dist/build/pdf.min.mjs");
-  pdfjsLib.GlobalWorkerOptions.workerSrc = "/node_modules/pdfjs-dist/build/pdf.worker.min.mjs";
+  const pdfjsLib = await loadPdfRenderer();
 
   const data = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data }).promise;
