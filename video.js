@@ -5,6 +5,7 @@ const formatSelect = document.querySelector("#format");
 const musicSelect = document.querySelector("#music");
 const mediaInput = document.querySelector("#media-assets");
 const generateButton = document.querySelector("#generate");
+const autoBrollButton = document.querySelector("#auto-broll");
 const renderButton = document.querySelector("#render");
 const downloadLink = document.querySelector("#download");
 const statusText = document.querySelector("#status");
@@ -38,6 +39,14 @@ renderButton.addEventListener("click", async () => {
 mediaInput.addEventListener("change", async () => {
   await loadMediaAssets(Array.from(mediaInput.files || []));
   assignMediaToScenes();
+  renderSceneEditors();
+  drawScene(0, 0);
+});
+
+autoBrollButton.addEventListener("click", () => {
+  if (!scenes.length) scenes = buildScenes();
+  readSceneEditors();
+  applyAutomaticBroll();
   renderSceneEditors();
   drawScene(0, 0);
 });
@@ -164,7 +173,7 @@ function renderSceneEditors() {
         <span>${scene.seconds.toFixed(1)}s</span>
       </div>
       <p class="visual">${scene.visual || "Animated caption scene"}</p>
-      <span class="media-label">${scene.media ? `Media: ${scene.media.name}` : "No real clip attached"}</span>
+      <span class="media-label">${scene.media ? `Media: ${scene.media.name}` : "No media attached"}</span>
       <input data-media="${index}" type="file" accept="video/*,image/*">
       <textarea data-scene="${index}">${scene.text}</textarea>
     `;
@@ -263,7 +272,7 @@ function drawScene(sceneIndex, sceneTime) {
   const progress = scene.seconds ? sceneTime / scene.seconds : 0;
   const pulse = Math.sin(progress * Math.PI);
 
-  if (!drawMediaBackground(scene)) {
+  if (!drawMediaBackground(scene, sceneTime)) {
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
     gradient.addColorStop(0, palette[0]);
     gradient.addColorStop(0.55, scene.accent || palette[1]);
@@ -354,6 +363,35 @@ function assignMediaToScenes() {
   }));
 }
 
+function applyAutomaticBroll() {
+  const theme = detectBrollTheme(cleanTopic(topicInput.value));
+  scenes = scenes.map((scene, index) => ({
+    ...scene,
+    visual: scene.visual || `Automatic ${theme} motion scene`,
+    media: createAutoBrollAsset(theme, index)
+  }));
+  setStatus(`Automatic ${theme} b-roll added to every scene. Render to make the video.`);
+}
+
+function detectBrollTheme(topic) {
+  const text = topic.toLowerCase();
+  if (/money|cash|rich|business|profit|sales|shop|ecommerce|crypto|finance/.test(text)) return "money";
+  if (/phone|ai|tech|software|app|computer|robot|digital|online/.test(text)) return "tech";
+  if (/gym|fit|body|health|sport|run|workout|diet/.test(text)) return "fitness";
+  if (/food|cook|restaurant|meal|coffee|recipe/.test(text)) return "food";
+  if (/travel|city|house|real estate|car|street|luxury/.test(text)) return "city";
+  return toneSelect.value === "viral" ? "viral" : "focus";
+}
+
+function createAutoBrollAsset(theme, index) {
+  return {
+    type: "auto",
+    name: `Auto ${theme} motion ${index + 1}`,
+    theme,
+    seed: index * 97 + theme.length * 13
+  };
+}
+
 async function prepareMediaForRender() {
   activeMediaIndex = null;
   await Promise.all(mediaAssets.map(async (asset) => {
@@ -388,9 +426,13 @@ function pauseAllMedia() {
   });
 }
 
-function drawMediaBackground(scene) {
+function drawMediaBackground(scene, sceneTime = 0) {
   const asset = scene.media;
   if (!asset) return false;
+  if (asset.type === "auto") {
+    drawAutoBroll(asset, sceneTime);
+    return true;
+  }
   const element = asset.element;
   const width = asset.type === "video" ? element.videoWidth : element.naturalWidth;
   const height = asset.type === "video" ? element.videoHeight : element.naturalHeight;
@@ -400,6 +442,124 @@ function drawMediaBackground(scene) {
   ctx.fillStyle = "rgba(0,0,0,0.22)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   return true;
+}
+
+function drawAutoBroll(asset, sceneTime) {
+  const t = sceneTime;
+  const theme = asset.theme;
+  const base = {
+    money: ["#0d3f2e", "#29b36f", "#f2b64b"],
+    tech: ["#09111f", "#1d7cff", "#7ef0ff"],
+    fitness: ["#111814", "#e64848", "#f2b64b"],
+    food: ["#1d1510", "#d95d67", "#f2b64b"],
+    city: ["#101817", "#506a78", "#f5f0df"],
+    viral: ["#150b1f", "#d95d67", "#f2b64b"],
+    focus: ["#101817", "#0e8b74", "#f2b64b"]
+  }[theme] || ["#101817", "#0e8b74", "#f2b64b"];
+
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, base[0]);
+  gradient.addColorStop(0.58, base[1]);
+  gradient.addColorStop(1, base[2]);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  if (theme === "money") drawMoneyMotion(t, asset.seed);
+  else if (theme === "tech") drawTechMotion(t, asset.seed);
+  else if (theme === "fitness") drawFitnessMotion(t, asset.seed);
+  else if (theme === "food") drawFoodMotion(t, asset.seed);
+  else if (theme === "city") drawCityMotion(t, asset.seed);
+  else drawViralMotion(t, asset.seed);
+
+  const zoom = 1 + Math.sin(t * 3) * 0.012;
+  ctx.save();
+  ctx.translate(canvas.width / 2, canvas.height / 2);
+  ctx.scale(zoom, zoom);
+  ctx.translate(-canvas.width / 2, -canvas.height / 2);
+  ctx.strokeStyle = "rgba(255,255,255,0.22)";
+  ctx.lineWidth = 6;
+  ctx.strokeRect(70, 90, canvas.width - 140, canvas.height - 180);
+  ctx.restore();
+}
+
+function drawMoneyMotion(t, seed) {
+  ctx.font = "900 78px Arial";
+  for (let i = 0; i < 18; i += 1) {
+    const x = ((i * 181 + seed * 7 + t * 170) % 1280) - 100;
+    const y = ((i * 263 + seed * 11 + t * 260) % 2200) - 140;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.sin(t + i) * 0.4);
+    ctx.fillStyle = i % 3 ? "rgba(255,255,255,0.52)" : "rgba(242,182,75,0.82)";
+    ctx.fillText(i % 2 ? "$" : "SALE", 0, 0);
+    ctx.restore();
+  }
+}
+
+function drawTechMotion(t, seed) {
+  ctx.strokeStyle = "rgba(126,240,255,0.38)";
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 22; i += 1) {
+    const y = (i * 94 + t * 120 + seed) % canvas.height;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvas.width, y + Math.sin(t + i) * 80);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(255,255,255,0.74)";
+  for (let i = 0; i < 30; i += 1) {
+    ctx.fillRect((i * 73 + seed * 3) % canvas.width, (i * 151 + t * 240) % canvas.height, 10, 10);
+  }
+}
+
+function drawFitnessMotion(t, seed) {
+  for (let i = 0; i < 12; i += 1) {
+    const x = 110 + ((i * 97 + seed) % 850);
+    const y = 260 + ((i * 151 + t * 180) % 1300);
+    ctx.fillStyle = i % 2 ? "rgba(255,255,255,0.55)" : "rgba(230,72,72,0.72)";
+    roundRect(x, y, 260, 34, 17);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + 12, y + 17, 54 + Math.sin(t * 4 + i) * 12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawFoodMotion(t, seed) {
+  for (let i = 0; i < 16; i += 1) {
+    const x = ((i * 139 + seed + Math.sin(t + i) * 90) % 1100) - 20;
+    const y = ((i * 219 + t * 150) % 1980) - 20;
+    ctx.fillStyle = i % 2 ? "rgba(242,182,75,0.75)" : "rgba(217,93,103,0.7)";
+    ctx.beginPath();
+    ctx.arc(x, y, 38 + (i % 4) * 12, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function drawCityMotion(t, seed) {
+  ctx.fillStyle = "rgba(255,255,255,0.22)";
+  for (let i = 0; i < 12; i += 1) {
+    const width = 80 + (i % 5) * 38;
+    const height = 360 + ((i * 97 + seed) % 540);
+    const x = i * 105 - ((t * 80) % 105);
+    ctx.fillRect(x, canvas.height - height, width, height);
+    ctx.fillStyle = i % 2 ? "rgba(242,182,75,0.25)" : "rgba(255,255,255,0.2)";
+  }
+}
+
+function drawViralMotion(t, seed) {
+  ctx.font = "900 92px Arial";
+  const words = ["WAIT", "LOOK", "NOW", "STOP", "WATCH"];
+  for (let i = 0; i < 14; i += 1) {
+    const x = ((i * 233 + seed * 5) % 1000) + Math.sin(t * 3 + i) * 80;
+    const y = ((i * 157 + t * 220) % 1900) + 20;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(Math.sin(t * 5 + i) * 0.18);
+    ctx.fillStyle = i % 2 ? "rgba(255,255,255,0.52)" : "rgba(242,182,75,0.8)";
+    ctx.fillText(words[i % words.length], -90, 0);
+    ctx.restore();
+  }
 }
 
 function drawCover(element, sourceWidth, sourceHeight) {
