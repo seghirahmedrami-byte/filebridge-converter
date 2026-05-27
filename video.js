@@ -3,6 +3,7 @@ const toneSelect = document.querySelector("#tone");
 const durationSelect = document.querySelector("#duration");
 const formatSelect = document.querySelector("#format");
 const musicSelect = document.querySelector("#music");
+const mediaInput = document.querySelector("#media-assets");
 const generateButton = document.querySelector("#generate");
 const renderButton = document.querySelector("#render");
 const downloadLink = document.querySelector("#download");
@@ -14,6 +15,8 @@ const ctx = canvas.getContext("2d");
 let scenes = [];
 let animationId = null;
 let downloadUrl = null;
+let mediaAssets = [];
+let activeMediaIndex = null;
 
 const palettes = {
   educational: ["#0e8b74", "#f2b64b", "#101817"],
@@ -30,6 +33,13 @@ renderButton.addEventListener("click", async () => {
   if (!scenes.length) scenes = buildScenes();
   readSceneEditors();
   await renderVideo();
+});
+
+mediaInput.addEventListener("change", async () => {
+  await loadMediaAssets(Array.from(mediaInput.files || []));
+  assignMediaToScenes();
+  renderSceneEditors();
+  drawScene(0, 0);
 });
 
 async function generateStoryboard() {
@@ -55,11 +65,13 @@ async function generateStoryboard() {
 
     const payload = await response.json();
     scenes = normalizeApiScenes(payload.scenes);
+    assignMediaToScenes();
     renderSceneEditors();
     drawScene(0, 0);
     setStatus("AI storyboard generated. Edit any scene text, then render the video.");
   } catch (error) {
     scenes = buildScenes();
+    assignMediaToScenes();
     renderSceneEditors();
     drawScene(0, 0);
     setStatus(`${error.message} Used local script generator instead.`);
@@ -136,6 +148,7 @@ function makeScene(label, text, seconds, index) {
     text,
     seconds,
     index,
+    media: null,
     accent: palettes[toneSelect.value][index % palettes[toneSelect.value].length]
   };
 }
@@ -151,9 +164,21 @@ function renderSceneEditors() {
         <span>${scene.seconds.toFixed(1)}s</span>
       </div>
       <p class="visual">${scene.visual || "Animated caption scene"}</p>
+      <span class="media-label">${scene.media ? `Media: ${scene.media.name}` : "No real clip attached"}</span>
+      <input data-media="${index}" type="file" accept="video/*,image/*">
       <textarea data-scene="${index}">${scene.text}</textarea>
     `;
     scenesContainer.appendChild(article);
+  });
+
+  scenesContainer.querySelectorAll("input[data-media]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const file = input.files[0];
+      if (!file) return;
+      scenes[Number(input.dataset.media)].media = await createMediaAsset(file);
+      renderSceneEditors();
+      drawScene(Number(input.dataset.media), 0);
+    });
   });
 }
 
@@ -167,6 +192,7 @@ async function renderVideo() {
   setStatus("Rendering video...");
   downloadLink.classList.add("disabled");
   if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+  await prepareMediaForRender();
 
   const stream = canvas.captureStream(30);
   const audioContext = new AudioContext();
@@ -188,6 +214,7 @@ async function renderVideo() {
   recorder.stop();
   await done;
   await audioContext.close();
+  pauseAllMedia();
 
   const blob = new Blob(chunks, { type: recorder.mimeType || "video/webm" });
   downloadUrl = URL.createObjectURL(blob);
@@ -200,12 +227,14 @@ async function renderVideo() {
 async function playTimeline() {
   const start = performance.now();
   const duration = totalDuration() * 1000;
+  activeMediaIndex = null;
 
   return new Promise((resolve) => {
     const tick = (now) => {
       const elapsed = now - start;
       const position = Math.min(duration, elapsed);
       const { sceneIndex, sceneTime } = locateScene(position / 1000);
+      syncSceneMedia(sceneIndex, sceneTime);
       drawScene(sceneIndex, sceneTime);
       if (elapsed < duration) {
         animationId = requestAnimationFrame(tick);
@@ -234,29 +263,31 @@ function drawScene(sceneIndex, sceneTime) {
   const progress = scene.seconds ? sceneTime / scene.seconds : 0;
   const pulse = Math.sin(progress * Math.PI);
 
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, palette[0]);
-  gradient.addColorStop(0.55, scene.accent || palette[1]);
-  gradient.addColorStop(1, palette[2]);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (!drawMediaBackground(scene)) {
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, palette[0]);
+    gradient.addColorStop(0.55, scene.accent || palette[1]);
+    gradient.addColorStop(1, palette[2]);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ctx.globalAlpha = 0.16;
-  for (let i = 0; i < 9; i += 1) {
-    ctx.beginPath();
-    ctx.arc(
-      120 + i * 130 + pulse * 60,
-      240 + ((i * 211) % 1200),
-      80 + ((i * 37) % 130),
-      0,
-      Math.PI * 2
-    );
-    ctx.fillStyle = i % 2 ? "#ffffff" : "#000000";
-    ctx.fill();
+    ctx.globalAlpha = 0.16;
+    for (let i = 0; i < 9; i += 1) {
+      ctx.beginPath();
+      ctx.arc(
+        120 + i * 130 + pulse * 60,
+        240 + ((i * 211) % 1200),
+        80 + ((i * 37) % 130),
+        0,
+        Math.PI * 2
+      );
+      ctx.fillStyle = i % 2 ? "#ffffff" : "#000000";
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
-  ctx.globalAlpha = 1;
 
-  ctx.fillStyle = "rgba(0,0,0,0.34)";
+  ctx.fillStyle = scene.media ? "rgba(0,0,0,0.48)" : "rgba(0,0,0,0.34)";
   roundRect(70, 180, 940, 1320, 42);
   ctx.fill();
 
@@ -274,6 +305,110 @@ function drawScene(sceneIndex, sceneTime) {
   ctx.fillRect(110, 1740, 860 * progress, 10);
   ctx.fillStyle = "rgba(255,255,255,0.34)";
   ctx.fillRect(110 + 860 * progress, 1740, 860 * (1 - progress), 10);
+}
+
+async function loadMediaAssets(files) {
+  mediaAssets.forEach((asset) => URL.revokeObjectURL(asset.url));
+  mediaAssets = [];
+  for (const file of files) {
+    mediaAssets.push(await createMediaAsset(file));
+  }
+  setStatus(mediaAssets.length ? `${mediaAssets.length} real clip(s) loaded. Generate or render your video.` : "No clips selected.");
+}
+
+async function createMediaAsset(file) {
+  const url = URL.createObjectURL(file);
+  const isVideo = file.type.startsWith("video/");
+  const element = document.createElement(isVideo ? "video" : "img");
+  element.src = url;
+
+  if (isVideo) {
+    element.muted = true;
+    element.loop = true;
+    element.playsInline = true;
+    element.preload = "auto";
+    await new Promise((resolve, reject) => {
+      element.onloadedmetadata = resolve;
+      element.onerror = reject;
+    });
+  } else {
+    await new Promise((resolve, reject) => {
+      element.onload = resolve;
+      element.onerror = reject;
+    });
+  }
+
+  return {
+    type: isVideo ? "video" : "image",
+    name: file.name,
+    url,
+    element
+  };
+}
+
+function assignMediaToScenes() {
+  if (!mediaAssets.length) return;
+  scenes = scenes.map((scene, index) => ({
+    ...scene,
+    media: scene.media || mediaAssets[index % mediaAssets.length]
+  }));
+}
+
+async function prepareMediaForRender() {
+  activeMediaIndex = null;
+  await Promise.all(mediaAssets.map(async (asset) => {
+    if (asset.type !== "video") return;
+    asset.element.currentTime = 0;
+    asset.element.muted = true;
+    await asset.element.play().catch(() => {});
+    asset.element.pause();
+  }));
+}
+
+function syncSceneMedia(sceneIndex, sceneTime) {
+  const scene = scenes[sceneIndex];
+  if (!scene?.media || scene.media.type !== "video") {
+    if (activeMediaIndex !== null) pauseAllMedia();
+    activeMediaIndex = null;
+    return;
+  }
+
+  if (activeMediaIndex !== sceneIndex) {
+    pauseAllMedia();
+    const video = scene.media.element;
+    video.currentTime = scene.media.element.duration ? sceneTime % scene.media.element.duration : 0;
+    video.play().catch(() => {});
+    activeMediaIndex = sceneIndex;
+  }
+}
+
+function pauseAllMedia() {
+  mediaAssets.forEach((asset) => {
+    if (asset.type === "video") asset.element.pause();
+  });
+}
+
+function drawMediaBackground(scene) {
+  const asset = scene.media;
+  if (!asset) return false;
+  const element = asset.element;
+  const width = asset.type === "video" ? element.videoWidth : element.naturalWidth;
+  const height = asset.type === "video" ? element.videoHeight : element.naturalHeight;
+  if (!width || !height) return false;
+
+  drawCover(element, width, height);
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  return true;
+}
+
+function drawCover(element, sourceWidth, sourceHeight) {
+  const scale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight);
+  const width = sourceWidth * scale;
+  const height = sourceHeight * scale;
+  const x = (canvas.width - width) / 2;
+  const y = (canvas.height - height) / 2;
+  ctx.drawImage(element, x, y, width, height);
 }
 
 function wrapText(text, x, y, maxWidth, lineHeight, font) {
