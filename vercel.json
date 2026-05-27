@@ -2,14 +2,7 @@
   "version": 2,
   "functions": {
     "index.js": {
-      "includeFiles": [
-        "index.html",
-        "filebridge.js",
-        "styles.css",
-        "video.html",
-        "video.css",
-        "video.js"
-      ]
+      "includeFiles": "{index.html,filebridge.js,styles.css,video.html,video.css,video.js}"
     },
     "api/storyboard.js": {
       "maxDuration": 30
