@@ -2,5 +2,6 @@
 node_modules
 .env
 .netlify
+server.js
 server.out.log
 server.err.log
