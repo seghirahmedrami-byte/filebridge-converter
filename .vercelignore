@@ -1,4 +1,6 @@
 .git
 node_modules
+.env
+.netlify
 server.out.log
 server.err.log
